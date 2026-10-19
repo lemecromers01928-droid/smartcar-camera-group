@@ -1,0 +1,23 @@
+# Keil MDK build outputs
+demo/mdk/Objects/
+demo/mdk/Listings/
+
+# Keil per-user state
+*.uvguix.*
+
+# Editor and assistant transient files
+**/.vscode/*.log
+**/.vscode/*.lock
+
+# Generic generated files
+*.o
+*.obj
+*.d
+*.dep
+*.axf
+*.elf
+*.hex
+*.bin
+*.map
+*.lnp
+
