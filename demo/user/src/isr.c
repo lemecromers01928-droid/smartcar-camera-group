@@ -76,6 +76,8 @@ void PIT_IRQHandler(void)
 			speed_pwm = 0.0f;
 			speed_pid_l.out = 0.0f;
 			speed_pid_r.out = 0.0f;
+			speed_pid_l.integrator = 0.0f;
+			speed_pid_r.integrator = 0.0f;
 			speed_pid_l.last_error = 0.0f;
 			speed_pid_r.last_error = 0.0f;
 			speed_pid_l.last_derivative = 0.0f;
@@ -88,17 +90,21 @@ void PIT_IRQHandler(void)
 
         // 编码器值即为速度值
         speed_real = encoder_data_1;
-        // 增量式速度PID更新（周期按一个离散采样单位计）
-        speed_pwm_l = PidIncCtrl(&speed_pid_l, speed_target - speed_real, 1.f);
-        // 只考虑一个方向转动
-        pwm_set_duty(MOTOR1_PWM, MAX(speed_pwm_l, 0));
+        /* 前馈 + 位置式PI，输出再经斜率限制，避免起步一脚 55% 直接冲出去 */
+        speed_pid_l.out = speed_feedforward + PidLocCtrl(&speed_pid_l, speed_target - speed_real, 1.f);
+        speed_pid_l.out = constrain_float(speed_pid_l.out, 0.0f, (float)PWM_DUTY_MAX);
+        speed_pwm_l += constrain_float(speed_pid_l.out - speed_pwm_l, -RACE_SPEED_SLEW, RACE_SPEED_SLEW);
+        speed_pwm_l = constrain_float(speed_pwm_l, 0.0f, (float)PWM_DUTY_MAX);
+        pwm_set_duty(MOTOR1_PWM, (uint32)speed_pwm_l);
         gpio_set_level(MOTOR1_DIR, MOTOR1_FORWARD_DIR_LEVEL);
         // 编码器值即为速度值
         speed_real = encoder_data_2;
-        // 增量式速度PID更新
-        speed_pwm_r = PidIncCtrl(&speed_pid_r, speed_target - speed_real, 1.f);
-        // 只考虑一个方向转动
-        pwm_set_duty(MOTOR2_PWM, MAX(speed_pwm_r, 0));
+        /* 前馈 + 位置式PI + 斜率限制 */
+        speed_pid_r.out = speed_feedforward + PidLocCtrl(&speed_pid_r, speed_target - speed_real, 1.f);
+        speed_pid_r.out = constrain_float(speed_pid_r.out, 0.0f, (float)PWM_DUTY_MAX);
+        speed_pwm_r += constrain_float(speed_pid_r.out - speed_pwm_r, -RACE_SPEED_SLEW, RACE_SPEED_SLEW);
+        speed_pwm_r = constrain_float(speed_pwm_r, 0.0f, (float)PWM_DUTY_MAX);
+        pwm_set_duty(MOTOR2_PWM, (uint32)speed_pwm_r);
         gpio_set_level(MOTOR2_DIR, MOTOR2_FORWARD_DIR_LEVEL);
 		speed_pwm = 0.5f * (speed_pwm_l + speed_pwm_r);
 

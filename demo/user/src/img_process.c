@@ -191,3 +191,56 @@ uint8_t lane_is_valid_at_row(const uint8_t* _left_line,
 	return (uint8_t)(width >= 8U && width <= (uint8_t)(_cols - 4U));
 }
 
+uint8_t lane_center_at_row(const uint8_t* _left_line,
+						 const uint8_t* _right_line,
+						 uint8_t _row,
+						 uint8_t _cols,
+						 uint8_t* _mid,
+						 uint16_t* _width_ref)
+{
+	uint8_t left        = _left_line[_row];
+	uint8_t right       = _right_line[_row];
+	uint8_t found_left  = (uint8_t)(left  != 0U);
+	uint8_t found_right = (uint8_t)(right < (uint8_t)(_cols - 1U));
+	uint16_t width      = *_width_ref;
+	uint8_t mid;
+	uint16_t tmp;
+
+	/* 两个"找到了"但几乎重合，说明整行同色（车压到蓝地胶上时，
+	 * 扫描从画面中心立刻命中黑点，left 和 right 都会等于中心列）。
+	 * 这种必须判成 LANE_NONE，否则会补出一条假中线，车永远不停。 */
+	if ((found_left != 0U) && (found_right != 0U) && ((uint8_t)(right - left) < 8U))
+	{
+		*_mid = (uint8_t)(_cols >> 1);
+		return LANE_NONE;
+	}
+
+	if ((found_left != 0U) && (found_right != 0U))
+	{
+		/* 两边都在：用本行宽度平滑更新参考带宽（3/4 旧 + 1/4 新） */
+		width = (uint16_t)((((uint32_t)width * 3U) + (uint32_t)(right - left)) >> 2);
+		*_width_ref = width;
+		mid = (uint8_t)(((uint16_t)left + (uint16_t)right) >> 1);
+	}
+	else if (found_left != 0U)
+	{
+		tmp = (uint16_t)left + (width >> 1);
+		mid = (uint8_t)((tmp < _cols) ? tmp : (uint8_t)(_cols - 1U));
+	}
+	else if (found_right != 0U)
+	{
+		tmp = width >> 1;
+		mid = (uint8_t)((right > tmp) ? (uint8_t)(right - tmp) : 0U);
+	}
+	else
+	{
+		*_mid = (uint8_t)(_cols >> 1);
+		return LANE_NONE;
+	}
+
+	*_mid = mid;
+	if ((found_left != 0U) && (found_right != 0U))
+		return LANE_BOTH;
+	return (found_left != 0U) ? LANE_LEFT_ONLY : LANE_RIGHT_ONLY;
+}
+

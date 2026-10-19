@@ -4,6 +4,11 @@
 // 电机PID初始化参数
 float speed_KP = RACE_SPEED_KP, speed_KI = RACE_SPEED_KI, speed_KD = RACE_SPEED_KD;
 float speed_IMAX = 5000.0, speed_OUTMAX = 5000.0;
+/* 速度环前馈（现场手调，PWM 满量程 10000）：只有比例项时，静止占空比最多
+ * Kp*target，电机推不动车，必须给一个基础占空比让车起步并维持速度。
+ * 架空后转速到不了 30 就往上加（3000/3500），明显冲过头就往下减。
+ * 注意：这个值不放进 race_autotune_generated.h，避免赛道自优化工具重新生成时丢掉。 */
+float speed_feedforward = 2500.0f;
 float speed_target = RACE_SPEED_TARGET_STRAIGHT;
 float speed_real = 0.0;
 float speed_pwm = 0.0;

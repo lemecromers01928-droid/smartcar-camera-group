@@ -43,10 +43,25 @@ extern const float servo_motor_duty_middle;
 
 // 舵机参数设置
 #define SERVO_MOTOR_PWM (PWM4_MODULE2_CHA_C30) // 定义主板上舵机对应引脚
+/* 主板有两个舵机输出口（C30 / C31），下面这个备用口和 C30 同时输出，
+ * 这样不管舵机线插在哪个口上都能动。 */
+#define SERVO_MOTOR_PWM_ALT (PWM4_MODULE3_CHA_C31)
 #define SERVO_MOTOR_FREQ (50)                  // 定义主板上舵机频率  请务必注意范围 50-300
-#define SERVO_MOTOR_L_MAX (100)  // 定义主板上舵机活动范围(左打方向的极限值) 角度 自行标定
-#define SERVO_MOTOR_R_MAX (85) // 定义主板上舵机活动范围(右打方向的极限值) 角度 自行标定
+#define SERVO_MOTOR_L_MAX (112)  // 实测机械极限：x 加到 112 顶死（2026-10-19 标定）
+#define SERVO_MOTOR_R_MAX (70)   // 实测机械极限：x 减到 70 顶死（2026-10-19 标定）
+/* 中值微调：上电时前轮不在正前方就调这里。每个 1.0 约 1 度，
+ * 车轮偏左就减（往右修），车轮偏右就加。范围要保持在 70~112 之间。 */
+#define SERVO_MOTOR_CENTER_TRIM (0.0f)
 #define SERVO_DIR (SERVO_MOTOR_L_MAX>SERVO_MOTOR_R_MAX?-1.f:1.f) // 根据左右duty的大小自动决定舵机方向
+
+// 速度指令斜率：每 10ms 允许变化的占空比，防止起步/换速时猛冲一脚
+#define RACE_SPEED_SLEW         (300.0f)
+// 丢线后允许继续跑的帧数：50fps 下 40 帧约 0.8 秒，超过才断电机停车
+#define RACE_LANE_LOST_LIMIT    (40)
+
+// 白带和蓝地胶的灰度差很小，Otsu 会飘。等实测出两边的灰度后可以把这里打开用固定阈值
+#define RACE_THRESHOLD_FIXED_ENABLE (0)
+#define RACE_THRESHOLD_FIXED        (200)
 
 // 以下宏在初步测试例程时不可更改，后面若需更改舵机算法可以自行更改
 // ------------------ 舵机占空比计算方式 ------------------
