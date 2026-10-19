@@ -1,6 +1,10 @@
 #ifndef _IMG_PROCESS_H_
 #define _IMG_PROCESS_H_
+#ifdef RACE_HOST_TEST
+#include <stdint.h>
+#else
 #include "zf_common_headfile.h"
+#endif
 
 void get_hist_gram(unsigned char* _img,
 				   const unsigned short _rows, 
@@ -14,6 +18,10 @@ void binaryzation_process(unsigned char* _img,
 void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_cols, 
 					   unsigned char _threshold_val, 
 					   uint8_t* _left_line, uint8_t* _mid_line, uint8_t* _right_line);
+uint8_t lane_is_valid_at_row(const uint8_t* _left_line,
+						 const uint8_t* _right_line,
+						 uint8_t _row,
+						 uint8_t _cols);
 
 
 #endif

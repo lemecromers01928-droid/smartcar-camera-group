@@ -21,3 +21,7 @@ demo/mdk/Listings/
 *.map
 *.lnp
 
+# Field captures and logs stay outside the firmware baseline
+captures/
+logs/
+

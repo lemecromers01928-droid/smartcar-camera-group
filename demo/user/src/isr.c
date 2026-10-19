@@ -59,26 +59,48 @@ void PIT_IRQHandler(void)
 {
     if (pit_flag_get(PIT_CH0))
     {
+		key_scanner();
         // 获取编码器读数
         encoder_data_1 = -encoder_get_count(ENCODER_1); // 获取编码器计数
         encoder_clear_count(ENCODER_1);                // 清空编码器计数
         encoder_data_2 = +encoder_get_count(ENCODER_2);
         encoder_clear_count(ENCODER_2);
 
+		/* The formal project powers up stopped. KEY_2 enables motion only after
+		 * the operator has checked the car; line loss and frame capture stop both
+		 * motors immediately. */
+		if (!race_run_enabled || race_capture_in_progress || !race_lane_valid)
+		{
+			speed_pwm_l = 0.0f;
+			speed_pwm_r = 0.0f;
+			speed_pwm = 0.0f;
+			speed_pid_l.out = 0.0f;
+			speed_pid_r.out = 0.0f;
+			speed_pid_l.last_error = 0.0f;
+			speed_pid_r.last_error = 0.0f;
+			speed_pid_l.last_derivative = 0.0f;
+			speed_pid_r.last_derivative = 0.0f;
+			pwm_set_duty(MOTOR1_PWM, 0);
+			pwm_set_duty(MOTOR2_PWM, 0);
+			pit_flag_clear(PIT_CH0);
+			return;
+		}
+
         // 编码器值即为速度值
         speed_real = encoder_data_1;
-        // PID更新 
-        speed_pwm = PidLocCtrl(&speed_pid_l, speed_target - speed_real, 1.f);
+        // 增量式速度PID更新（周期按一个离散采样单位计）
+        speed_pwm_l = PidIncCtrl(&speed_pid_l, speed_target - speed_real, 1.f);
         // 只考虑一个方向转动
-        pwm_set_duty(MOTOR1_PWM, MAX(speed_pwm, 0));
+        pwm_set_duty(MOTOR1_PWM, MAX(speed_pwm_l, 0));
         gpio_set_level(MOTOR1_DIR, MOTOR1_FORWARD_DIR_LEVEL);
         // 编码器值即为速度值
         speed_real = encoder_data_2;
-        // PID更新 
-        speed_pwm = PidLocCtrl(&speed_pid_r, speed_target - speed_real, 1.f);
+        // 增量式速度PID更新
+        speed_pwm_r = PidIncCtrl(&speed_pid_r, speed_target - speed_real, 1.f);
         // 只考虑一个方向转动
-        pwm_set_duty(MOTOR2_PWM, MAX(speed_pwm, 0));
+        pwm_set_duty(MOTOR2_PWM, MAX(speed_pwm_r, 0));
         gpio_set_level(MOTOR2_DIR, MOTOR2_FORWARD_DIR_LEVEL);
+		speed_pwm = 0.5f * (speed_pwm_l + speed_pwm_r);
 
         pit_flag_clear(PIT_CH0);
     }

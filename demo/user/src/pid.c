@@ -1,10 +1,14 @@
 #include "pid.h"
+#include "race_autotune_generated.h"
 
 // 电机PID初始化参数
-float speed_KP = 50, speed_KI = 0,speed_KD = 0.0, speed_IMAX = 5000.0, speed_OUTMAX = 5000.0;
-float speed_target = 30.0;
+float speed_KP = RACE_SPEED_KP, speed_KI = RACE_SPEED_KI, speed_KD = RACE_SPEED_KD;
+float speed_IMAX = 5000.0, speed_OUTMAX = 5000.0;
+float speed_target = RACE_SPEED_TARGET_STRAIGHT;
 float speed_real = 0.0;
 float speed_pwm = 0.0;
+float speed_pwm_l = 0.0;
+float speed_pwm_r = 0.0;
 
 pid_param_t speed_pid_l;  // 电机PID
 pid_param_t speed_pid_r;  // 电机PID
@@ -53,15 +57,14 @@ void Pid_Param_Init(pid_param_t * pid, float kp, float ki, float kd, float imax,
 *******************************************************************************/
 float PidLocCtrl(pid_param_t * pid, float error, float t)
 {
-    /* 累积误差 */
-    pid->integrator += error;
-
-    /* 误差限幅 */
-    pid->out_i = constrain_float(pid->integrator, -pid->imax, pid->imax);
-
-
+    if (t <= 0.0f)
+        t = 1.0f;
+    /* imax limits the stored integral. The old implementation limited a
+     * temporary value and then overwrote it, so wind-up was never prevented. */
+    pid->integrator += error * t;
+    pid->integrator = constrain_float(pid->integrator, -pid->imax, pid->imax);
     pid->out_p = pid->kp * error;
-    pid->out_i = pid->ki * t * pid->integrator;
+    pid->out_i = pid->ki * pid->integrator;
     pid->out_d = pid->kd/t * (error - pid->last_error);
 
     pid->last_error = error;
@@ -82,6 +85,8 @@ float PidLocCtrl(pid_param_t * pid, float error, float t)
 *******************************************************************************/
 float PidIncCtrl(pid_param_t * pid, float error, float t)
 {
+    if (t <= 0.0f)
+        t = 1.0f;
 
     pid->out_p = pid->kp * (error - pid->last_error);
     pid->out_i = pid->ki * error * t ;

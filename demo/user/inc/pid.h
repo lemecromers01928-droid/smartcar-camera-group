@@ -28,6 +28,8 @@ extern float speed_KP, speed_KI,speed_KD, speed_IMAX, speed_OUTMAX;
 extern float speed_target;                      // 目标速度
 extern float speed_real;                        // 实际速度
 extern float speed_pwm;                         // 施加在电机上的PWM占空比
+extern float speed_pwm_l;                       // 左电机PWM
+extern float speed_pwm_r;                       // 右电机PWM
 
 
 void My_Pid_Init(void);

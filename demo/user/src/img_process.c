@@ -32,7 +32,9 @@ void get_hist_gram(unsigned char* _img,
 				   const unsigned short _cols, 
 				   short* _hist_gram)
 {
-	memset(_hist_gram, 0, 256);
+	/* short[256] occupies 512 bytes. Clearing only 256 bytes leaves half of
+	 * the previous frame's histogram behind and eventually corrupts Otsu. */
+	memset(_hist_gram, 0, sizeof(short) * 256U);
     for (unsigned short _i = 0; _i < _rows; ++_i)
     {
         for (unsigned short _j = 0; _j < _cols; ++_j)
@@ -93,17 +95,20 @@ void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_
 					   unsigned char _threshold_val, 
 					   uint8_t* _left_line, uint8_t* _mid_line, uint8_t* _right_line)
 {
+	/* This function receives the already binarized image. Compare against the
+	 * binary split instead of the original Otsu value (which can legally be 0). */
+	(void)_threshold_val;
     uint8_t mid_point = _src_cols >> 1;
-    if (_src_pixel_mat[(_src_rows - 1) * _src_cols + mid_point] < _threshold_val)
+	if (_src_pixel_mat[(_src_rows - 1) * _src_cols + mid_point] < 128U)
     {
         // 重新寻找扫线中点
         int16_t _tmp_left_mid = 0;
         int16_t _tmp_right_mid = _src_cols;
         for (int16_t j = (_src_cols >> 1); j < _src_cols - 2; ++j)
         {
-            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > _threshold_val && 
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 1] > _threshold_val && 
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 2] > _threshold_val)
+            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > 127U &&
+				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 1] > 127U &&
+				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 2] > 127U)
             {
                 _tmp_right_mid = j + 2;
             }
@@ -111,9 +116,9 @@ void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_
 
         for (int16_t j = (_src_cols >> 1); j > 2; --j)
         {
-            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > _threshold_val && 
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 1] > _threshold_val && 
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 2] > _threshold_val)
+            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > 127U &&
+				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 1] > 127U &&
+				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 2] > 127U)
             {
                 _tmp_left_mid = j - 2;
             }
@@ -130,13 +135,14 @@ void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_
     for (int i = _src_rows - 1; i >= 0; --i)
     {
         uint8_t cur_point = mid_point;
+		_left_line[i] = 0;
+		_right_line[i] = _src_cols - 1;
        // 扫描左线
         while (cur_point - 2 > 0)
         {
-            _left_line[i] = 0;
-            if (_src_pixel_mat[i * _src_cols + cur_point] < _threshold_val && 
-				_src_pixel_mat[i * _src_cols + cur_point - 1] < _threshold_val && 
-				_src_pixel_mat[i * _src_cols + cur_point - 2] < _threshold_val)
+            if (_src_pixel_mat[i * _src_cols + cur_point] < 128U &&
+				_src_pixel_mat[i * _src_cols + cur_point - 1] < 128U &&
+				_src_pixel_mat[i * _src_cols + cur_point - 2] < 128U)
             {
                 _left_line[i] = cur_point;
                 break;
@@ -147,10 +153,9 @@ void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_
         cur_point = mid_point;
         while (cur_point + 2 < _src_cols)
         {
-            _right_line[i] = _src_cols - 1;
-            if (_src_pixel_mat[i * _src_cols + cur_point] < _threshold_val &&
-				_src_pixel_mat[i * _src_cols + cur_point + 1] < _threshold_val &&
-				_src_pixel_mat[i * _src_cols + cur_point + 2] < _threshold_val)
+            if (_src_pixel_mat[i * _src_cols + cur_point] < 128U &&
+				_src_pixel_mat[i * _src_cols + cur_point + 1] < 128U &&
+				_src_pixel_mat[i * _src_cols + cur_point + 2] < 128U)
             {
                 _right_line[i] = cur_point;
                 break;
@@ -169,5 +174,20 @@ void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_
             mid_point = _src_cols >> 1;
         }
     }
+}
+
+uint8_t lane_is_valid_at_row(const uint8_t* _left_line,
+						 const uint8_t* _right_line,
+						 uint8_t _row,
+						 uint8_t _cols)
+{
+	uint8_t left = _left_line[_row];
+	uint8_t right = _right_line[_row];
+	uint8_t width;
+
+	if (left == 0U || right >= (uint8_t)(_cols - 1U) || right <= left)
+		return 0U;
+	width = (uint8_t)(right - left);
+	return (uint8_t)(width >= 8U && width <= (uint8_t)(_cols - 4U));
 }
 

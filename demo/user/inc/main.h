@@ -1,6 +1,21 @@
 #include "zf_common_headfile.h"
 #include "img_process.h"
 
+typedef enum
+{
+    RACE_STATE_STOPPED = 0,
+    RACE_STATE_NORMAL,
+    RACE_STATE_CURVE,
+    RACE_STATE_LINE_LOST,
+    RACE_STATE_CAPTURE
+} race_state_enum;
+
+extern volatile uint8_t race_run_enabled;
+extern volatile uint8_t race_capture_in_progress;
+extern volatile uint8_t race_lane_valid;
+extern volatile race_state_enum race_state;
+extern const float servo_motor_duty_middle;
+
 // 编码器引脚信息
 // 请确保两轮编码器前进时回传值都为正数，若回传为负请isr.c中encoder_get_count前修改正负号
 // 左轮编码器
