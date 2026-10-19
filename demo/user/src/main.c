@@ -88,9 +88,11 @@ static void race_dump_raw_pgm(const uint8_t* pixels)
 
 static void race_handle_keys(void)
 {
-    if (KEY_SHORT_PRESS == key_get_state(KEY_2))
+    /* On the RT1064 V3.1 mainboard the physical S2 observed on the car maps
+     * to the library's KEY_1 (C15). Keep the operator-facing labels here. */
+    if (KEY_SHORT_PRESS == key_get_state(KEY_1))
     {
-        key_clear_state(KEY_2);
+        key_clear_state(KEY_1);
         race_run_enabled = (uint8_t)!race_run_enabled;
         if (!race_run_enabled)
         {
@@ -99,9 +101,9 @@ static void race_handle_keys(void)
             pwm_set_duty(SERVO_MOTOR_PWM, SERVO_MOTOR_DUTY(servo_motor_duty_middle));
         }
     }
-    if (KEY_SHORT_PRESS == key_get_state(KEY_1))
+    if (KEY_SHORT_PRESS == key_get_state(KEY_2))
     {
-        key_clear_state(KEY_1);
+        key_clear_state(KEY_2);
         race_run_enabled = 0;
         race_capture_requested = 1;
     }
@@ -170,7 +172,7 @@ void Init()
     pwm_init(SERVO_MOTOR_PWM, SERVO_MOTOR_FREQ, 0);
     pwm_set_duty(SERVO_MOTOR_PWM, SERVO_MOTOR_DUTY(servo_motor_duty_middle));
 
-    // S1: 停车并输出一帧原始PGM；S2: 运行/停车。上电默认停车。
+    // 物理S1: 停车并输出一帧原始PGM；物理S2: 运行/停车。上电默认停车。
     key_init(10);
     tft180_show_string(0, 110, "STOP");
 
