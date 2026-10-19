@@ -59,6 +59,12 @@ extern const float servo_motor_duty_middle;
 // 丢线后允许继续跑的帧数：50fps 下 40 帧约 0.8 秒，超过才断电机停车
 #define RACE_LANE_LOST_LIMIT    (40)
 
+/* 中线偏置（像素）：车沿带子中线走、而不是偏在一侧的关键。
+ * 标定方法：把车摆到白带正中间、车头朝正前方、静止不动，
+ * 读屏幕上第 2 行的 err 值，把这个数**原样**填进来（显示 -8 就填 -8.0f）。
+ * 只跟摄像头装在车上的位置和角度有关，装一次标一次即可。 */
+#define RACE_CENTER_OFFSET_PX   (0.0f)
+
 // 白带和蓝地胶的灰度差很小，Otsu 会飘。等实测出两边的灰度后可以把这里打开用固定阈值
 #define RACE_THRESHOLD_FIXED_ENABLE (0)
 #define RACE_THRESHOLD_FIXED        (200)

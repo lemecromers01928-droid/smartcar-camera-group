@@ -91,89 +91,74 @@ unsigned char get_threshold_otsu(const short* _hist_gram)
     return threshold;
 }
 
+/*
+ *@func: 边界线寻找（按"贴着画面边框的暗区"找边线）
+ *
+ * 原来是从画面中心往两边找暗点，赛道上任何一块黑色装饰（斑马线、胶带、
+ * 阴影）都会被当成边线，中线立刻被拉过去——这也是赛道上那处黑条区域
+ * 判断不稳的原因。现在改成从画面左右边框往里扫：只有一直贴到边框的暗区
+ * 才算"赛道外"，画面中间的暗色块完全不参与判断。
+ */
 void auxiliary_process(uint8_t* _src_pixel_mat, uint8_t _src_rows, uint8_t _src_cols, 
 					   unsigned char _threshold_val, 
 					   uint8_t* _left_line, uint8_t* _mid_line, uint8_t* _right_line)
 {
-	/* This function receives the already binarized image. Compare against the
-	 * binary split instead of the original Otsu value (which can legally be 0). */
+	/* 传进来的是已经二值化的图，用固定的 0/255 判据，不再用 Otsu 的原始值 */
 	(void)_threshold_val;
-    uint8_t mid_point = _src_cols >> 1;
-	if (_src_pixel_mat[(_src_rows - 1) * _src_cols + mid_point] < 128U)
-    {
-        // 重新寻找扫线中点
-        int16_t _tmp_left_mid = 0;
-        int16_t _tmp_right_mid = _src_cols;
-        for (int16_t j = (_src_cols >> 1); j < _src_cols - 2; ++j)
-        {
-            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > 127U &&
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 1] > 127U &&
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j + 2] > 127U)
-            {
-                _tmp_right_mid = j + 2;
-            }
-        }
 
-        for (int16_t j = (_src_cols >> 1); j > 2; --j)
-        {
-            if (_src_pixel_mat[(_src_rows - 1) * _src_cols + j] > 127U &&
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 1] > 127U &&
-				_src_pixel_mat[(_src_rows - 1) * _src_cols + j - 2] > 127U)
-            {
-                _tmp_left_mid = j - 2;
-            }
-        }
-        if (_tmp_right_mid - (_src_cols >> 1) < (_src_cols >> 1) - _tmp_left_mid)
-        {
-            mid_point = _tmp_right_mid;
-        }
-        else
-        {
-            mid_point = _tmp_left_mid;
-        }
-    }
-    for (int i = _src_rows - 1; i >= 0; --i)
-    {
-        uint8_t cur_point = mid_point;
-		_left_line[i] = 0;
-		_right_line[i] = _src_cols - 1;
-       // 扫描左线
-        while (cur_point - 2 > 0)
-        {
-            if (_src_pixel_mat[i * _src_cols + cur_point] < 128U &&
-				_src_pixel_mat[i * _src_cols + cur_point - 1] < 128U &&
-				_src_pixel_mat[i * _src_cols + cur_point - 2] < 128U)
-            {
-                _left_line[i] = cur_point;
-                break;
-            }
-            --cur_point;
-        }
-        // 扫描右线
-        cur_point = mid_point;
-        while (cur_point + 2 < _src_cols)
-        {
-            if (_src_pixel_mat[i * _src_cols + cur_point] < 128U &&
-				_src_pixel_mat[i * _src_cols + cur_point + 1] < 128U &&
-				_src_pixel_mat[i * _src_cols + cur_point + 2] < 128U)
-            {
-                _right_line[i] = cur_point;
-                break;
-            }
-            ++cur_point;
-        }
+	for (uint8_t row = 0U; row < _src_rows; row ++)
+	{
+		const uint8_t* line = _src_pixel_mat + (uint16_t)row * _src_cols;
+		uint8_t left  = 0U;                       /* 0   = 没找到（白区一直延伸到画面外） */
+		uint8_t right = (uint8_t)(_src_cols - 1U); /* 末列 = 没找到 */
+		uint8_t run;
+		uint8_t col;
 
-        _mid_line[i] = (_right_line[i] + _left_line[i]) >> 1;
-        if (_left_line[i] != 0 || 
-			_right_line[i] != _src_cols - 1)
-        {
-            mid_point = _mid_line[i];
-        }
-        else
-        {
-            mid_point = _src_cols >> 1;
-        }
-    }
+		/* ---- 左边：从最左列往里数连续暗像素，暗区必须贴着边框才算数 ---- */
+		run = 0U;
+		while ((run < _src_cols) && (line[run] < 128U))
+		{
+			run ++;
+		}
+		if ((run >= 2U) && (run < _src_cols))
+		{
+			/* 再找连续 3 个亮点，避开暗区里的孤立噪点 */
+			col = run;
+			while (((uint16_t)col + 2U) < _src_cols)
+			{
+				if ((line[col] >= 128U) && (line[col + 1U] >= 128U) && (line[col + 2U] >= 128U))
+				{
+					break;
+				}
+				col ++;
+			}
+			left = (((uint16_t)col + 2U) < _src_cols) ? col : 0U;
+		}
+
+		/* ---- 右边：从最右列往里数连续暗像素 ---- */
+		run = 0U;
+		while ((run < _src_cols) && (line[_src_cols - 1U - run] < 128U))
+		{
+			run ++;
+		}
+		if ((run >= 2U) && (run < _src_cols))
+		{
+			col = (uint8_t)(_src_cols - 1U - run);
+			while (col > 2U)
+			{
+				if ((line[col] >= 128U) && (line[col - 1U] >= 128U) && (line[col - 2U] >= 128U))
+				{
+					break;
+				}
+				col --;
+			}
+			right = (col > 2U) ? col : (uint8_t)(_src_cols - 1U);
+		}
+
+		_left_line[row]  = left;
+		_right_line[row] = right;
+		_mid_line[row]   = (uint8_t)(((uint16_t)left + (uint16_t)right) >> 1);
+	}
 }
 
 uint8_t lane_is_valid_at_row(const uint8_t* _left_line,

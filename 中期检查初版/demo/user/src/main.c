@@ -362,7 +362,7 @@ int main(void)
             sample_row = (race_used_row < RACE_SAMPLE_ROW_COUNT)
                        ? race_sample_rows[race_used_row]
                        : (uint8_t)(MT9V03X_H - 1U);
-            mid_err = (float)(MT9V03X_W / 2) - (float)race_mid_col;
+            mid_err = (float)(MT9V03X_W / 2) - (float)race_mid_col - RACE_CENTER_OFFSET_PX;
 
             if (race_lane_state != LANE_NONE)
             {
