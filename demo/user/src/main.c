@@ -172,6 +172,7 @@ void Init()
 
     // S1: 停车并输出一帧原始PGM；S2: 运行/停车。上电默认停车。
     key_init(10);
+    tft180_show_string(0, 110, "STOP");
 
     // PID初始化
     My_Pid_Init();
