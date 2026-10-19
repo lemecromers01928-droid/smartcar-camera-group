@@ -93,7 +93,11 @@ static void race_handle_keys(void)
         key_clear_state(KEY_2);
         race_run_enabled = (uint8_t)!race_run_enabled;
         if (!race_run_enabled)
+        {
             race_state = RACE_STATE_STOPPED;
+            speed_target = 0.0f;
+            pwm_set_duty(SERVO_MOTOR_PWM, SERVO_MOTOR_DUTY(servo_motor_duty_middle));
+        }
     }
     if (KEY_SHORT_PRESS == key_get_state(KEY_1))
     {
@@ -220,7 +224,7 @@ int main(void)
             race_lane_valid = lane_is_valid_at_row(left_line, right_line, sample_row, MT9V03X_W);
 
             mid_err = (float)(MT9V03X_W / 2) - (float)mid_line[sample_row];
-            if (race_lane_valid)
+            if (race_lane_valid && race_run_enabled)
             {
                 steer_delta = RACE_STEER_KP * mid_err
                             + RACE_STEER_KD * (mid_err - race_last_mid_err);
@@ -232,9 +236,18 @@ int main(void)
                                 mid_err < -RACE_CURVE_ERROR_THRESHOLD_PX)
                              ? RACE_SPEED_TARGET_CURVE
                              : RACE_SPEED_TARGET_STRAIGHT;
-                race_state = race_run_enabled
-                           ? ((speed_target == RACE_SPEED_TARGET_CURVE) ? RACE_STATE_CURVE : RACE_STATE_NORMAL)
-                           : RACE_STATE_STOPPED;
+                race_state = (speed_target == RACE_SPEED_TARGET_CURVE)
+                           ? RACE_STATE_CURVE
+                           : RACE_STATE_NORMAL;
+                race_last_mid_err = mid_err;
+            }
+            else if (race_lane_valid)
+            {
+                /* STOP must be mechanically quiet as well as motor-safe. */
+                speed_target = 0.0f;
+                tmp_duty = servo_motor_duty_middle;
+                pwm_set_duty(SERVO_MOTOR_PWM, SERVO_MOTOR_DUTY(tmp_duty));
+                race_state = RACE_STATE_STOPPED;
                 race_last_mid_err = mid_err;
             }
             else
